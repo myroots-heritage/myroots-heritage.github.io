@@ -1,0 +1,20 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { FamilyGraph, memberInputSchema, type Member, type Relationship } from '@myroots/shared';
+import { ContactCipher, PasswordHasher, tokenHash } from './security.js';
+import { GoogleDriveStorage } from './entry-flows.js';
+const members=['grandparent','parent','child','partner'].map(id=>({id,name:id,familyId:'f',status:'unverified'})) as Member[];
+const edges=[{fromId:'grandparent',toId:'parent',type:'parent'},{fromId:'parent',toId:'child',type:'parent'},{fromId:'parent',toId:'partner',type:'partner'}] as Relationship[];
+test('branch sharing contains descendants and head, excludes partners and ancestors',()=>{const graph=new FamilyGraph(members,edges);assert.deepEqual([...graph.descendants('parent')],['parent','child']);});
+test('relationship search finds a shortest path in either direction',()=>{const graph=new FamilyGraph(members,edges);assert.deepEqual(graph.path('child','grandparent').map(s=>s.label),['parent','parent']);assert.equal(graph.path('child','child').length,0);});
+test('graph rejects ancestor cycles and remains bounded if malformed edges are imported',()=>{const graph=new FamilyGraph(members,[...edges,{fromId:'child',toId:'grandparent',type:'parent'} as Relationship]);assert.equal(graph.wouldCycle('child','grandparent'),true);assert.equal(graph.descendants('parent').size,3);});
+test('private contact encryption is randomized and detects tampering',()=>{const cipher=new ContactCipher(randomBytes(32).toString('base64'));const a=cipher.encrypt('+919876543210'),b=cipher.encrypt('+919876543210');assert.notEqual(a,b);assert.ok(!a.includes('9876543210'));assert.equal(cipher.decrypt(a),'+919876543210');const parts=a.split('.');parts[2]=Buffer.from('tampered').toString('base64');assert.throws(()=>cipher.decrypt(parts.join('.')));});
+test('passwords are salted and invalid passwords fail',async()=>{const hasher=new PasswordHasher(),hash=await hasher.hash('A long family password');assert.equal(await hasher.verify('A long family password',hash),true);assert.equal(await hasher.verify('wrong password',hash),false);assert.notEqual(hash,await hasher.hash('A long family password'));assert.notEqual(tokenHash('session-token'),'session-token');});
+test('member input rejects invalid phone numbers and missing relative IDs',()=>{assert.equal(memberInputSchema.safeParse({name:'A',phone:'1234',relativeTo:'x',relation:'parent'}).success,false);});
+test('Drive adapter reserves an ID, uses the selected folder, uploads only ciphertext',async()=>{
+  const calls:{url:string;init?:RequestInit}[]=[];
+  const fetcher=(async(url:string|URL|Request,init?:RequestInit)=>{calls.push({url:String(url),init});if(String(url).includes('oauth2'))return Response.json({access_token:'test-token',expires_in:3600});if(String(url).includes('generateIds'))return Response.json({ids:['reserved-id']});return Response.json({id:'reserved-id'});}) as typeof fetch;
+  const storage=new GoogleDriveStorage({clientId:'client',clientSecret:'secret',refreshToken:'refresh',folderId:'selected-folder'},fetcher);
+  const id=await storage.reserveId();await storage.put(id,'event-id','ciphertext-only');assert.equal(id,'reserved-id');const upload=calls.find(c=>c.url.includes('upload/'))!;assert.match(String(upload.init?.body),/selected-folder/);assert.match(String(upload.init?.body),/ciphertext-only/);assert.match(String(upload.init?.body),/reserved-id/);assert.equal(calls.filter(c=>c.url.includes('oauth2')).length,1);
+});

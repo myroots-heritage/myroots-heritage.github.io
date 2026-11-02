@@ -1,0 +1,14 @@
+import { Pool } from 'pg';
+import { createApp } from './app.js';
+import { PostgresRepository } from './repository.js';
+import { ContactCipher } from './security.js';
+import { AuthService } from './auth-service.js';
+import { FamilyService } from './family-service.js';
+import { EntryFlowService } from './entry-flows.js';
+if(!process.env.DATABASE_URL)throw new Error('Set DATABASE_URL in backend/.env');
+const pool=new Pool({connectionString:process.env.DATABASE_URL,max:10,connectionTimeoutMillis:5000});
+const repo=new PostgresRepository(pool),cipher=new ContactCipher(process.env.CONTACT_ENCRYPTION_KEY??'');
+const flows=new EntryFlowService(new ContactCipher(process.env.WORKFLOW_ENCRYPTION_KEY??''));
+const app=await createApp(new AuthService(repo,flows),new FamilyService(repo,cipher,flows),process.env.WEB_ORIGIN??'http://127.0.0.1:5173',process.env.NODE_ENV==='production');
+await app.listen({port:Number(process.env.PORT??3001),host:'127.0.0.1'});
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,async()=>{await app.close();await pool.end();process.exit(0);});
