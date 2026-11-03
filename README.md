@@ -74,4 +74,6 @@ Pending before real public use: verified account recovery, phone OTP and explici
 
 ## Deployment
 
+For `https://myroots-heritage.github.io/`, the GitHub Actions workflow in `.github/workflows/deploy-pages.yml` builds the frontend automatically on pushes to `main`. First select **Settings → Pages → Source → GitHub Actions** in the repository. See [the GitHub Pages steps](docs/DEPLOYMENT.md#github-pages-myroots-heritagegithubio). This hosts the demo UI; backend services need separate hosting.
+
 `npm run build` produces `frontend/dist` and bundled backend entrypoints in `backend/dist`. Serve the frontend through HTTPS, and proxy `/api` to the separate Node API on a private network. Set `NODE_ENV=production`, `WEB_ORIGIN` to the exact frontend origin, and inject secrets from a secret manager. Start the worker separately with the same database and archive key configuration. The included Sites configuration hosts the frontend demo only; it does not deploy PostgreSQL, the Node API, or the worker. See [deployment notes](docs/DEPLOYMENT.md).

@@ -1,6 +1,27 @@
 # Deployment boundaries
 
-The Sites manifest packages only `frontend/dist`. This is an owner-private **demo deployment**, with sample data in browser memory. The Node/PostgreSQL API and Drive worker are separate services and are not deployed by this static manifest.
+## GitHub Pages: myroots-heritage.github.io
+
+The included `.github/workflows/deploy-pages.yml` builds and publishes the frontend demo on pushes to `main`. The repository must be `myroots-heritage/myroots-heritage.github.io` to use the root address `https://myroots-heritage.github.io/`.
+
+1. Open [the repository's Pages settings](https://github.com/myroots-heritage/myroots-heritage.github.io/settings/pages).
+2. Under **Build and deployment → Source**, select **GitHub Actions**.
+3. Commit and push the workflow and project source to `main`.
+4. Open the repository's **Actions** tab and watch **Deploy my.roots to GitHub Pages**. Once both jobs succeed, open `https://myroots-heritage.github.io/`.
+
+You can also use **Actions → Deploy my.roots to GitHub Pages → Run workflow** after the workflow is on `main`. Later pushes rebuild and update the website automatically. No `gh-pages` branch or committed `dist` folder is needed. GitHub runs `npm ci` in its own build environment; npm does not need to be reinstalled on your computer.
+
+The workflow installs from the root lockfile, builds the `frontend` workspace, and uploads only `frontend/dist`. Vite's default `base: '/'` is already correct for this root GitHub Pages domain. A project hosted under a different repository subpath would need its own base path.
+
+GitHub Pages hosts static files. This publishes the demo tree and in-browser interactions; it does not run the Node API, PostgreSQL, the Drive worker, account signup, or real verification. The site's sample changes reset on reload. Do not put provider secrets or real family records into the static build. To make the full product work, deploy the backend services separately and deliberately configure authentication and cross-origin access as described below.
+
+References: [Vite GitHub Pages guide](https://vite.dev/guide/static-deploy#github-pages), [GitHub publishing-source settings](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
+
+## Other static hosting
+
+The Sites manifest can also package `frontend/dist` for an owner-private demo, with sample data in browser memory. The previous Sites publication was not completed. The Node/PostgreSQL API and Drive worker are separate services and are not deployed by that static manifest.
+
+## Backend services
 
 For the real product, deploy:
 
