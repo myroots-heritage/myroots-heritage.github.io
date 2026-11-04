@@ -1,5 +1,7 @@
 # Deployment boundaries
 
+For the complete step-by-step setup, including account creation, database, keys, commands, and persistence checks, use [ONLINE_HOSTING.md](ONLINE_HOSTING.md).
+
 ## GitHub Pages: myroots-heritage.github.io
 
 The included `.github/workflows/deploy-pages.yml` builds and publishes the frontend demo on pushes to `main`. The repository must be `myroots-heritage/myroots-heritage.github.io` to use the root address `https://myroots-heritage.github.io/`.
@@ -30,10 +32,10 @@ For the real product, deploy:
 3. PostgreSQL on a private network, with encryption at rest, managed backups and least-privilege database roles.
 4. `backend/dist/worker.mjs` as an independently supervised process with Drive OAuth secrets.
 
-Proxy `/api` from the frontend origin to the API. Keep `WEB_ORIGIN` exactly equal to the browser origin, set `NODE_ENV=production`, and set a supported Node LTS version. The session uses `SameSite=Strict`; cross-site frontend/API deployments need a deliberate cookie/CSRF redesign rather than simply setting a different API URL. Vite's dev proxy is not included in the production build.
+Set `SERVE_FRONTEND=true` to serve `frontend/dist` directly from the Node API, or proxy `/api` from the frontend origin to the separate API. Keep `WEB_ORIGIN` exactly equal to the browser origin, set `NODE_ENV=production`, and set a supported Node LTS version. On Render, omit `WEB_ORIGIN` to use the provided `RENDER_EXTERNAL_URL`. The session uses `SameSite=Strict`; cross-site frontend/API deployments need a deliberate cookie/CSRF redesign rather than simply setting a different API URL. Vite's dev proxy is not included in the production build.
 
 Production bundling inlines the shared TypeScript package and leaves external npm runtime dependencies in place. Install workspace dependencies with `npm ci`, run `npm run build`, and start with `npm run start -w backend`. Inject credentials through your host's secrets manager. Keep the archive-encryption and contact-encryption keys distinct and backed up securely.
 
-The API currently binds `127.0.0.1`; adapt binding to your container/private network deployment intentionally and restrict ingress. Rate limiting currently uses process memory; use a shared store and trusted proxy configuration for a multi-instance deployment. Remove or restrict demo account registration if deploying a review environment against a shared database.
+The API binds `127.0.0.1` in development and `0.0.0.0` in production, with an optional `HOST` override and platform-supplied `PORT`. Restrict ingress appropriately for the host. Rate limiting currently uses process memory; use a shared store and trusted proxy configuration for a multi-instance deployment. Remove or restrict demo account registration if deploying a review environment against a shared database.
 
 Before production: run the migrations against a disposable real PostgreSQL instance, test rollback and concurrency, test Drive recovery after crashes, verify folder access, perform restore and deletion drills, load-test graph/visibility queries, validate mobile accessibility, and complete the privacy items in `PRIVACY.md`.
